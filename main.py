@@ -9,7 +9,7 @@ import telebot
 import requests
 
 API_TOKEN = os.getenv("TELEGRAM_API")
-
+URL_TOKEN = os.getenv("RENDER_RASA_PATH")
 bot = telebot.TeleBot(API_TOKEN)
 
 # Handle '/start' and '/help'
@@ -23,10 +23,10 @@ def send_welcome(message):
 @bot.message_handler(content_types=['text'])
 def message(message):
     params = {
-      "sender": "user1",
+      "sender": str(message.chat.id), #check
       "message": message.text
     }
-    response = requests.post("https://ai-agent-vsnj.onrender.com/webhooks/rest/webhook", json=params)
+    response = requests.post(URL_TOKEN, json=params)
     data = response.json()
     bot.reply_to(message, data[0]['text'])
 
