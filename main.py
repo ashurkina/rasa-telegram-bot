@@ -1,48 +1,30 @@
-from typing import Union
-from fastapi import FastAPI
-from telegram_bot import start_bot
-from threading import Thread
+from fastapi import FastAPI, Request
+from bot import bot, dp, BOT_TOKEN
+from aiogram import types
+import asyncio
+import os
+from fastapi.responses import HTMLResponse
+
+
+WEBHOOK_PATH = f'/webhook/{BOT_TOKEN}'
+WEBHOOK_URL = f'{os.getenv("WEBHOOK_BASE")}{WEBHOOK_PATH}'
 
 app = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q" : q}
-
-# Start Telegram bot in a separate thread when app launches
 @app.on_event("startup")
-def startup_event():
-    Thread(target=start_bot, daemon=True).start()
+async def on_startup():
+    await bot.set_webhook(WEBHOOK_URL)
 
+@app.post(WEBHOOK_PATH)
+async def telegram_webhook(request: Request):
+    update = types.Update(**await request.json())
+    await dp.feed_update(bot, update)
+    return {"ok": True}
 
-# import os
-# import telebot
-# import requests
-#
-# API_TOKEN = os.getenv("TELEGRAM_API")
-# URL_TOKEN = os.getenv("RENDER_RASA_PATH")
-# bot = telebot.TeleBot(API_TOKEN)
-#
-# # Handle '/start' and '/help'
-# @bot.message_handler(commands=['help', 'start'])
-# def send_welcome(message):
-#     bot.reply_to(message, """
-# Привет, я помощник OPEN AI. Какой вопрос?
-# """)
-#
-# # Handle all other messages with content_type 'text' (content_types defaults to ['text'])
-# @bot.message_handler(content_types=['text'])
-# def message(message):
-#     params = {
-#       "sender": str(message.chat.id), #check
-#       "message": message.text
-#     }
-#     response = requests.post(URL_TOKEN, json=params)
-#     data = response.json()
-#     bot.reply_to(message, data[0]['text'])
-#
-# bot.infinity_polling()
+@app.on_event("shutdown")
+async def on_shutdown():
+    await bot.delete_webhook()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello, World"}
